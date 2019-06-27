@@ -2,7 +2,7 @@
 
 set PATH=%QUARTUS_ROOTDIR%\bin64;%QUARTUS_ROOTDIR%\bin32;%QUARTUS_ROOTDIR%\bin;%PATH%
 
-quartus_pgm.exe -c "USB-Blaster" -m JTAG -o p;output_files\DE0_top.sof
+quartus_pgm.exe -c "USB-Blaster" -m JTAG -o p;DE0_top.sof
 
 echo Press any key to finish.
 pause > nul
