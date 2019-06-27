@@ -1,0 +1,65 @@
+
+// VirtualJTAGƒeƒXƒg
+
+%i "seg7_ctrl.h"
+%i "vjtag_uart.h"
+
+circuit vjtag_test
+{
+	output HEX0<7>, HEX1<7>, HEX2<7>, HEX3<7>;
+	seg7_ctrl seg7_0, seg7_1, seg7_2, seg7_3;
+	sel seg<16>;
+	output LEDG<10>;
+
+	reg_ws reset;
+
+	vjtag_uart vjtag;
+
+	reg_wr sum<8>;
+	mem ram[32768]<8>;
+	reg_wr ram_dout<8>, wadrs<15>, radrs<15>;
+
+	stage_name send_set { task do(); }
+
+	if(reset){
+		reset := 0;
+	}
+
+	HEX3 = seg7_3.con(seg<15:12>).oSEG;
+	HEX2 = seg7_2.con(seg<11: 8>).oSEG;
+	HEX1 = seg7_1.con(seg< 7: 4>).oSEG;
+	HEX0 = seg7_0.con(seg< 3: 0>).oSEG;
+
+	seg = 0x00 || sum;
+
+//	LEDG = wadrs<9:0>;
+	LEDG = radrs<9:0>;
+
+	instruct vjtag.init_recv par{
+		sum := 0x00;
+		wadrs := 0;
+	}
+
+	instruct vjtag.recv par{
+		ram[wadrs] := vjtag.recv_data;
+		wadrs++;
+		sum += vjtag.recv_data;
+	}
+
+	instruct vjtag.init_send par{
+		radrs := 0;
+	}
+
+	instruct vjtag.send par{
+		ram_dout := ram[radrs];
+		radrs++;
+		generate send_set.do();
+	}
+
+	stage send_set {
+		par{
+			vjtag.send_set(ram_dout);
+			finish;
+		}
+	}
+}
