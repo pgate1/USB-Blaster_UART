@@ -1,4 +1,4 @@
-# USB-Blaster UART
+# USB-Blaster UART with VirtualJTAG
 
 Let's communicate between PC user software and FPGA via Altera USB-Blaster.
 The target FPGA boards are DE0, DE1, DE2, DE0-CV, etc. made by Terasic, in which the USB-Blaster circuit is installed.  
