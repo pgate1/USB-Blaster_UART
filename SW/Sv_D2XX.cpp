@@ -78,12 +78,12 @@ int send_data(FT_HANDLE ftHandle, const int total_size)
 	MoveIdleToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0E); // USER1
 	MoveShiftirToShiftdr(ftHandle);
-	WriteShiftdr(ftHandle, 0x41); // ƒJƒEƒ“ƒ^ƒŠƒZƒbƒg‚Ì‚½‚ß
+	WriteShiftdr(ftHandle, 0x41); // ã‚«ã‚¦ãƒ³ã‚¿ãƒªã‚»ãƒƒãƒˆã®ãŸã‚
 	MoveShiftdrToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0C); // USER0
 	MoveShiftirToShiftdr(ftHandle);
 
-	int wdata_num = total_size; // ‘—MƒTƒCƒY
+	int wdata_num = total_size; // é€ä¿¡ã‚µã‚¤ã‚º
 	uint16 *send_buf = new uint16[wdata_num];
 	uint8 sum = 0;
 	for(int i=0; i<wdata_num; i++){
@@ -108,6 +108,8 @@ printf("\n");
 printf("send sum 0x%02X\n", sum);
 printf("send %dms %0.1fkB/s\n\n", u, wdata_num/s/1024.0);
 
+	DeviceClose(ftHandle);
+
 	return 0;
 }
 
@@ -119,7 +121,7 @@ int recv_data(FT_HANDLE ftHandle, const int total_size)
 	MoveIdleToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0E); // USER1
 	MoveShiftirToShiftdr(ftHandle);
-	WriteShiftdr(ftHandle, 0x42); // ƒJƒEƒ“ƒ^ƒŠƒZƒbƒg‚Ì‚½‚ß(Read)
+	WriteShiftdr(ftHandle, 0x42); // ã‚«ã‚¦ãƒ³ã‚¿ãƒªã‚»ãƒƒãƒˆã®ãŸã‚(Read)
 	MoveShiftdrToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0C); // USER0
 	MoveShiftirToShiftdr(ftHandle);
@@ -127,7 +129,7 @@ int recv_data(FT_HANDLE ftHandle, const int total_size)
 	uint16 send_buf[0x20];
 	for(int i=0; i<0x20; i++) send_buf[i] = L;
 
-	int rdata_num = 0x3F; // 0x3F‚ªÅ‘å
+	int rdata_num = 0x3F; // 0x3FãŒæœ€å¤§
 	uint8 *recv_buf = new uint8[rdata_num];
 
 	send_buf[0] = RD | rdata_num;
@@ -156,6 +158,8 @@ printf("\n");
 printf("recv sum 0x%02X\n", sum);
 printf("recv %dms %0.1fkB/s\n", u, total_size/s/1024.0);
 
+	DeviceClose(ftHandle);
+
 	return 0;
 }
 
@@ -180,7 +184,6 @@ int main(void)
 
 	recv_data(ftHandle, total_size);
 
-	DeviceClose(ftHandle);
 	FT_Close(ftHandle);
 
 //	getchar();
