@@ -1,36 +1,24 @@
 /*
-	VirtualJTAGでデータ送受信
+	Data transmission and reception with VirtualJTAG
 */
 
 module vjtag_uart (
-	p_reset, m_clock,
-	init_recv, recv, recv_data,
-	init_send, send, send_set, send_data
+	input  wire p_reset,
+	input  wire m_clock,
+	output wire recv_init,
+	output wire recv,
+	output wire [7:0] recv_data,
+	output wire send_init,
+	output wire send_ready,
+	input  wire send,
+	input  wire [7:0] send_data
 );
 
-	input p_reset, m_clock;
-	output init_recv, recv;
-	output [7:0] recv_data;
-	output init_send, send;
-	input send_set;
-	input [7:0] send_data;
-
 	wire [7:0] ir_in;
-	wire tck, tdi;
-	wire tdo;
+	wire tck, tdi, tdo;
 	wire virtual_state_sdr, virtual_state_uir;
-	reg [7:0] ir, dr, ds;
-	reg [2:0] count;
-
-	reg t_init;
-	reg [1:0] m_init;
-	reg t_recv;
-	reg [1:0] m_recv;
-	reg t_send;
-	reg [2:0] m_send;
 
 	virtual_jtag vjtag (
-		.ir_out(8'h00),
 		.tdo(tdo),
 		.ir_in(ir_in),
 		.tck(tck),
@@ -39,6 +27,13 @@ module vjtag_uart (
 		.virtual_state_uir(virtual_state_uir)
 	);
 
+	localparam COMMAND_RECV = 8'h41;
+	localparam COMMAND_SEND = 8'h42;
+
+	reg t_init, t_recv, t_send;
+	reg [7:0] ir, dr, ds;
+	reg [2:0] count;
+
 	always @(posedge p_reset or posedge tck) begin
 		if(p_reset) begin
 			t_init <= 0;
@@ -46,56 +41,55 @@ module vjtag_uart (
 			t_send <= 0;
 		end
 		else if(virtual_state_uir) begin
-			count <= 0;
-			t_init <= 1;
-			t_recv <= 0;
 			ir <= ir_in;
-			if(ir_in==8'h42)
-				t_send <= 1;
+			t_init <= 1;
+		end	
+		else if(t_init) begin
+			count <= 0;
+			if(ir==COMMAND_SEND) t_send <= 1;
+			t_init <= 0;
 		end
 		else if(virtual_state_sdr) begin
-			t_init <= 0;
 			dr[count] <= tdi;
 			count <= count + 1;
 			if(count==7) begin
-				if(ir==8'h41)
-					t_recv <= 1;
-				else
-					t_send <= 1;
+				if(ir==COMMAND_RECV) t_recv <= 1;
+				if(ir==COMMAND_SEND) t_send <= 1;
 			end
 			else begin
-				if(ir==8'h41)
-					t_recv <= 0;
-				else
-					t_send <= 0;
+				if(ir==COMMAND_RECV) t_recv <= 0;
+				if(ir==COMMAND_SEND) t_send <= 0;
 			end
 		end
 	end
 
-	// t_init同期化
+	// t_init synchronizing
+	reg [2:0] m_init;
 	always @(posedge p_reset or posedge m_clock) begin
 		if(p_reset)
-			m_init <= 2'b00;
+			m_init <= 3'b000;
 		else
-			m_init <= {m_init[0], t_init};
+			m_init <= {m_init[1:0], t_init};
 	end
 
-	// 立上がり検出
-	assign init_recv = (ir_in==8'h41 && m_init==2'b01) ? 1 : 0;
-	assign init_send = (ir_in==8'h42 && m_init==2'b01) ? 1 : 0;
+	// rising edge detection
+	assign recv_init = (ir==COMMAND_RECV && m_init[2:1]==2'b01) ? 1 : 0;
+	assign send_init = (ir==COMMAND_SEND && m_init[2:1]==2'b01) ? 1 : 0;
 
-	// t_recv同期化
+	// t_recv synchronizing
+	reg [2:0] m_recv;
 	always @(posedge p_reset or posedge m_clock) begin
 		if(p_reset)
-			m_recv <= 2'b00;
+			m_recv <= 3'b000;
 		else
-			m_recv <= {m_recv[0], t_recv};
+			m_recv <= {m_recv[1:0], t_recv};
 	end
 
 	assign recv_data = dr;
-	assign recv = m_recv==2'b01 ? 1 : 0;
+	assign recv = m_recv[2:1]==2'b01 ? 1 : 0;
 
-	// t_send同期化
+	// t_send synchronizing
+	reg [2:0] m_send;
 	always @(posedge p_reset or posedge m_clock) begin
 		if(p_reset)
 			m_send <= 3'b000;
@@ -103,12 +97,12 @@ module vjtag_uart (
 			m_send <= {m_send[1:0], t_send};
 	end
 
-	assign send = m_send==3'b011 ? 1 : 0;
+	assign send_ready = m_send[2:1]==2'b01 ? 1 : 0;
 
 	always @(posedge p_reset or posedge m_clock) begin
 		if(p_reset)
 			ds <= 8'h00;
-		else if(send_set)
+		else if(send)
 			ds <= send_data;
 	end
 

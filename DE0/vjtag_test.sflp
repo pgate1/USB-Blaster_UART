@@ -13,7 +13,7 @@ circuit vjtag_test
 
 	vjtag_uart vjtag;
 
-	reg_wr sum<8>;
+	reg_wr recv_sum<8>, send_sum<8>;
 	mem ram[32768]<8>;
 	reg_wr ram_dout<8>, adrs<15>;
 
@@ -23,33 +23,35 @@ circuit vjtag_test
 	HEX1 = seg7_1.con(seg< 7: 4>).oSEG;
 	HEX0 = seg7_0.con(seg< 3: 0>).oSEG;
 
-	seg = 0x00 || sum;
+	seg = send_sum || recv_sum;
 
 	LEDG = adrs<9:0>;
 
-	instruct vjtag.init_recv par{
-		sum := 0x00;
+	instruct vjtag.recv_init par{
 		adrs := 0;
+		recv_sum := 0x00;
 	}
 
 	instruct vjtag.recv par{
 		ram[adrs] := vjtag.recv_data;
 		adrs++;
-		sum += vjtag.recv_data;
+		recv_sum += vjtag.recv_data;
 	}
 
-	instruct vjtag.init_send par{
+	instruct vjtag.send_init par{
 		adrs := 0;
+		send_sum := 0x00;
 	}
 
 	reg_wr send_set;
-	instruct vjtag.send par{
+	instruct vjtag.send_ready par{
 		ram_dout := ram[adrs];
 		adrs++;
 		send_set := 0b1;
 	}
 	if(send_set){
-		vjtag.send_set(ram_dout);
+		vjtag.send(ram_dout);
+		send_sum += ram_dout;
 		send_set := 0b0;
 	}
 

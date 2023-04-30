@@ -3,12 +3,12 @@
 
 declare vjtag_uart
 {
-	instrout init_recv, recv;
+	instrout recv_init, recv;
 	output recv_data<8>;
 
-	instrout init_send, send;
-	instrin send_set;
+	instrout send_init, send_ready;
+	instrin send;
 	input send_data<8>;
 
-	instr_arg send_set(send_data);
+	instr_arg send(send_data);
 }
