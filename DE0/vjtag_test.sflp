@@ -43,16 +43,16 @@ circuit vjtag_test
 		send_sum := 0x00;
 	}
 
-	reg_wr send_set;
+	reg_wr vjtag_send;
 	instruct vjtag.send_ready par{
 		ram_dout := ram[adrs];
 		adrs++;
-		send_set := 0b1;
+		vjtag_send := 0b1;
 	}
-	if(send_set){
+	if(vjtag_send){
 		vjtag.send(ram_dout);
 		send_sum += ram_dout;
-		send_set := 0b0;
+		vjtag_send := 0b0;
 	}
 
 }
