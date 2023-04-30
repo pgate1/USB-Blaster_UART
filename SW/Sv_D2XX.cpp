@@ -1,4 +1,8 @@
 
+#if (_MSC_VER >= 1915)
+#define no_init_all deprecated
+#endif
+
 #include<windows.h>
 #pragma comment(lib, "winmm.lib")
 
@@ -38,14 +42,14 @@ void MoveIdleToShiftir(FT_HANDLE ftHandle)
 void WriteShiftdr(FT_HANDLE ftHandle, uint8 drCodeValue)
 {
 	uint32 send_size;
-	uint16 buf[] = {(drCodeValue << 8) | WR};
+	uint16 buf[] = {(uint16)(((uint16)drCodeValue << 8) | WR)};
 	FT_Write(ftHandle, buf, sizeof(buf), &send_size);
 }
 
 void WriteShiftir(FT_HANDLE ftHandle, uint8 irCodeValue)
 {
 	uint32 send_size;
-	uint16 buf[] = {(irCodeValue << 8) | WR, L};
+	uint16 buf[] = {(uint16)(((uint16)irCodeValue << 8) | WR), L};
 	FT_Write(ftHandle, buf, sizeof(buf), &send_size);
 }
 
@@ -78,18 +82,19 @@ int send_data(FT_HANDLE ftHandle, const int total_size)
 	MoveIdleToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0E); // USER1
 	MoveShiftirToShiftdr(ftHandle);
-	WriteShiftdr(ftHandle, 0x41); // ã‚«ã‚¦ãƒ³ã‚¿ãƒªã‚»ãƒƒãƒˆã®ãŸã‚
+	WriteShiftdr(ftHandle, 0x41); // ƒJƒEƒ“ƒ^ƒŠƒZƒbƒg‚Ì‚½‚ß(FPGA recv)
 	MoveShiftdrToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0C); // USER0
 	MoveShiftirToShiftdr(ftHandle);
 
-	int wdata_num = total_size; // é€ä¿¡ã‚µã‚¤ã‚º
+	int wdata_num = total_size; // ‘—MƒTƒCƒY
 	uint16 *send_buf = new uint16[wdata_num];
 	uint8 sum = 0;
 	for(int i=0; i<wdata_num; i++){
 		uint8 data = rand();
+	//	printf("0x%02X ", data);
 		sum += data;
-		send_buf[i] = (data << 8) | WR;
+		send_buf[i] = ((uint16)data << 8) | WR;
 	}
 
 DWORD st, et;
@@ -106,7 +111,7 @@ double s = u / 1000.0;
 
 printf("\n");
 printf("send sum 0x%02X\n", sum);
-printf("send %dms %0.1fkB/s\n\n", u, wdata_num/s/1024.0);
+printf("send %dms %0.1f kB/s\n\n", u, wdata_num/s/1024.0);
 
 	DeviceClose(ftHandle);
 
@@ -121,15 +126,15 @@ int recv_data(FT_HANDLE ftHandle, const int total_size)
 	MoveIdleToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0E); // USER1
 	MoveShiftirToShiftdr(ftHandle);
-	WriteShiftdr(ftHandle, 0x42); // ã‚«ã‚¦ãƒ³ã‚¿ãƒªã‚»ãƒƒãƒˆã®ãŸã‚(Read)
+	WriteShiftdr(ftHandle, 0x42); // ƒJƒEƒ“ƒ^ƒŠƒZƒbƒg‚Ì‚½‚ß(FPGA send)
 	MoveShiftdrToShiftir(ftHandle);
 	WriteShiftir(ftHandle, 0x0C); // USER0
 	MoveShiftirToShiftdr(ftHandle);
 
-	uint16 send_buf[0x20];
-	for(int i=0; i<0x20; i++) send_buf[i] = L;
+	uint16 send_buf[64];
+	for(int i=0; i<64; i++) send_buf[i] = L;
 
-	int rdata_num = 0x3F; // 0x3FãŒæœ€å¤§
+	int rdata_num = 0x3F; // 0x3F‚ªÅ‘å
 	uint8 *recv_buf = new uint8[rdata_num];
 
 	send_buf[0] = RD | rdata_num;
@@ -140,12 +145,16 @@ st = timeGetTime();
 	uint8 sum = 0;
 	int t = 0;
 	for(int d=0; d<total_size; d+=rdata_num){
+
 		uint32 send_size;
 		FT_Write(ftHandle, send_buf, rdata_num+1, &send_size); // max 64
 		uint32 recv_size;
 		FT_Read(ftHandle, recv_buf, rdata_num, &recv_size);
 
-		for(int i=0; i<recv_size && t<total_size; i++,t++) sum+=recv_buf[i]; 
+		for(int i=0; i<(int)recv_size && t<total_size; i++,t++){
+			sum += recv_buf[i];
+			//printf("0x%02X ", recv_buf[i]);
+		}
 	}
 
 et = timeGetTime();
@@ -156,7 +165,7 @@ double s = u / 1000.0;
 
 printf("\n");
 printf("recv sum 0x%02X\n", sum);
-printf("recv %dms %0.1fkB/s\n", u, total_size/s/1024.0);
+printf("recv %dms %0.1f kB/s\n", u, total_size/s/1024.0);
 
 	DeviceClose(ftHandle);
 
@@ -165,22 +174,31 @@ printf("recv %dms %0.1fkB/s\n", u, total_size/s/1024.0);
 
 int main(void)
 {
+	const int total_size = 3;
+	printf("size %d byte\n", total_size);
+
 	FT_STATUS ftStatus;
 	FT_HANDLE ftHandle;
 
-	ftStatus = FT_OpenEx("USB-Blaster", FT_OPEN_BY_DESCRIPTION, &ftHandle);
-
+	ftStatus = FT_OpenEx((PVOID)"USB-Blaster", FT_OPEN_BY_DESCRIPTION, &ftHandle);
 	if(ftStatus!=FT_OK){
 		printf("Failed to open port\n");
 		return 0;
 	}
 
-	srand(time(NULL));
-
-	const int total_size = 32768;
-	printf("size %d byte\n", total_size);
+	srand((uint32)time(NULL));
 
 	send_data(ftHandle, total_size);
+
+	FT_Close(ftHandle);
+
+//	getchar();
+
+	ftStatus = FT_OpenEx((PVOID)"USB-Blaster", FT_OPEN_BY_DESCRIPTION, &ftHandle);
+	if(ftStatus!=FT_OK){
+		printf("Failed to open port\n");
+		return 0;
+	}
 
 	recv_data(ftHandle, total_size);
 
