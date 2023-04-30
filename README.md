@@ -14,8 +14,8 @@ The result of running the sample.
 size 32768 byte
 
 send sum 0x26
-send 78ms 410.3kB/s
+send 78ms 410.3 kB/s
 
 recv sum 0x26
-recv 1061ms 30.2kB/s
+recv 1061ms 30.2 kB/s
 ```
