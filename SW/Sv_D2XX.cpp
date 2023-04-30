@@ -174,7 +174,7 @@ printf("recv %dms %0.1f kB/s\n", u, total_size/s/1024.0);
 
 int main(void)
 {
-	const int total_size = 3;
+	const int total_size = 32768;
 	printf("size %d byte\n", total_size);
 
 	FT_STATUS ftStatus;
