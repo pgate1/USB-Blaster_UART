@@ -131,8 +131,8 @@ int recv_data(FT_HANDLE ftHandle, const int total_size)
 	WriteShiftir(ftHandle, 0x0C); // USER0
 	MoveShiftirToShiftdr(ftHandle);
 
-	uint16 send_buf[64];
-	for(int i=0; i<64; i++) send_buf[i] = L;
+	uint16 send_buf[32];
+	for(int i=0; i<32; i++) send_buf[i] = L;
 
 	int rdata_num = 0x3F; // 0x3F‚ªÅ‘å
 	uint8 *recv_buf = new uint8[rdata_num];
