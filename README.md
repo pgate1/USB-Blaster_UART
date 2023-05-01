@@ -7,7 +7,7 @@ https://pgate1.at-ninja.jp/memo/VirtualJTAG_USB-Blaster/
 Get FTDI D2XX driver.  
 https://www.ftdichip.com/Drivers/D2XX.htm
 
-![UART via USB-Blaster](https://pgate1.at-ninja.jp/mmemo/VirtualJTAG_USB-Blaster/usbjtag_e.png)
+![UART via USB-Blaster](https://pgate1.at-ninja.jp/memo/VirtualJTAG_USB-Blaster/usbjtag_e.png)
 
 The result of running the sample.  
 ```
