@@ -1,0 +1,275 @@
+
+/*
+	DE0-CV SDRAM Controller 2017/07/27
+
+	8M Words x 16 bits x 4 Banks (64MB)
+
+	clock 50 MHz
+		bank<2> adrs<23> data<16>
+*/
+
+circuit sdram_ctrl
+{
+	output CSn, RASn, CASn, WEn, DQM<2>;
+	output DEn; // Write data output enable
+	output BA<2>, A<13>;
+	input Din<16>;
+	output Dout<16>;
+
+	instrin write(adrs, wdata, enable);
+	input wdata<16>, adrs<25>, enable<2>;
+	instrin read(adrs);
+	output rdata<16>, ack;
+
+	output err;
+	reg_wr err_reg;
+
+	reg_wr BA_reg<2>, A_reg<13>, mask_reg<2>;
+	reg_ws RASn_reg, CASn_reg, WEn_reg, DEn_reg;
+
+	reg_ws reset;
+	reg_wr adrs_reg<25>, rdata_reg<16>, wdata_reg<16>;
+
+	instrself com_NOP, com_PRE, com_REF, com_MRS, com_ACT, com_WRITE, com_READ;
+
+	stage_name init { task do(); }
+	stage_name refresh { task do(); }
+	stage_name refresh_cnt { task do(); }
+	stage_name write_stg { task do(adrs_reg, wdata_reg); }
+	stage_name read_stg { task do(adrs_reg); }
+
+	par{
+		if(reset){
+			reset := 0b0;
+			generate init.do();
+		}
+
+		ack = ^(init.do | read_stg.do | write_stg.do);
+
+		CSn = 0b0;
+		DQM = mask_reg;
+		RASn = RASn_reg;
+		CASn = CASn_reg;
+		WEn = WEn_reg;
+		DEn = DEn_reg;
+		BA = BA_reg;
+		A = A_reg;
+
+		Dout = wdata_reg;
+
+		rdata = rdata_reg;
+
+		// for debug
+		any{
+			init.do & (read_stg.do | write_stg.do) : err_reg := 0b1;
+			read_stg.do & write_stg.do : err_reg := 0b1;
+			(read_stg.do & read) | (write_stg.do & write) : err_reg := 0b1;
+		}
+		err = err_reg;
+	}
+
+	instruct read par{
+		mask_reg := 0b00;
+		generate read_stg.do(adrs);
+	}
+
+	instruct write par{
+		mask_reg := ^enable;
+		generate write_stg.do(adrs, wdata);
+	}
+
+	instruct com_NOP par{
+		RASn_reg := 0b1;
+		CASn_reg := 0b1;
+		WEn_reg  := 0b1;
+	}
+
+	// Trp 20 ns
+	instruct com_PRE par{
+		RASn_reg := 0b0;
+		CASn_reg := 0b1;
+		WEn_reg  := 0b0;
+	}
+
+	// Trc 70 ns
+	instruct com_REF par{
+		RASn_reg := 0b0;
+		CASn_reg := 0b0;
+		WEn_reg  := 0b1;
+	}
+
+	// Trc 10 ns
+	instruct com_MRS par{
+		RASn_reg := 0b0;
+		CASn_reg := 0b0;
+		WEn_reg  := 0b0;
+	}
+
+	// Trcd 20 ns
+	instruct com_ACT par{
+		RASn_reg := 0b0;
+		CASn_reg := 0b1;
+		WEn_reg  := 0b1;
+	}
+
+	instruct com_WRITE par{
+		RASn_reg := 0b1;
+		CASn_reg := 0b0;
+		WEn_reg  := 0b0;
+	}
+
+	instruct com_READ par{
+		RASn_reg := 0b1;
+		CASn_reg := 0b0;
+		WEn_reg  := 0b1;
+	}
+
+	stage init {
+		reg_wr init_count<16>, count<6>; // use <14>
+		state_name st_PON,st_PALL,st_wPALL1,st_wPALL2,st_REF,st_wREF,st_MRS,st_wMRS;
+		first_state st_PON;
+		state st_PON par{
+			com_NOP();
+		//	mask_reg := 0b11;
+			init_count++;
+			if(init_count==0x2710) goto st_PALL; // 200 us
+		}
+		state st_PALL par{
+			com_PRE();
+			A_reg := 0b0010000000000; // All banks
+			goto st_wPALL1;
+		}
+		state st_wPALL1 par{
+			com_NOP();
+			goto st_wPALL2;
+		}
+		state st_wPALL2 par{
+			count++;
+			if(/&count) goto st_REF;
+		}
+		state st_REF par{
+			count++;
+			if(count<2:0>==0b000) com_REF();
+			else com_NOP();
+			if(/&count) goto st_wREF;
+		}
+		state st_wREF par{
+			goto st_MRS;
+		}
+		state st_MRS par{
+			com_MRS();
+			BA_reg := 0b00;
+			A_reg := 0b000000_010_0_000; // CAS 2 Burst 1
+		//	LDM_reg := 0b0;
+		//	HDM_reg := 0b0;
+			goto st_wMRS;
+		}
+		state st_wMRS par{
+			com_NOP(); // 4回以上
+			count++;
+			if(count<3>) relay refresh_cnt.do();
+		}
+	}
+
+	// 3 clk
+	stage write_stg {
+		state_name st_ACT, st_WRITEA, st_w1;
+		first_state st_ACT;
+		state st_ACT if(^refresh.do){
+			com_ACT();
+			BA_reg := adrs_reg<24:23>;
+			A_reg := adrs_reg<22:10>;
+			DEn_reg := 0b0;
+			goto st_WRITEA;
+		}
+		state st_WRITEA par{
+			com_WRITE();
+			A_reg := 0b001 || adrs_reg<9:0>; // オートプリチャージ
+			goto st_w1;
+		}
+		state st_w1 par{
+			com_NOP();
+			DEn_reg := 0b1;
+			goto st_ACT;
+			finish;
+		}
+	}
+
+	// 5 clk
+	stage read_stg {
+		state_name st_ACT,st_READA,st_w0,st_w1,st_w2;
+		first_state st_ACT;
+		state st_ACT if(^refresh.do){
+			com_ACT();
+			BA_reg := adrs_reg<24:23>;
+			A_reg := adrs_reg<22:10>;
+			goto st_READA;
+		}
+		state st_READA par{
+			com_READ();
+			A_reg := 0b001 || adrs_reg<9:0>; // オートプリチャージ
+			goto st_w0;
+		}
+		state st_w0 par{
+			com_NOP();
+			goto st_w1;
+		}
+		state st_w1 par{
+			goto st_w2;
+		}
+		state st_w2 par{ // CL 2
+			rdata_reg := Din;
+			goto st_ACT;
+			finish;
+		}
+	}
+
+	// 8192 refresh cycles every 16ms (50MHzで800,000clk)
+	// 97clkごとに1リフレッシュ
+	stage refresh_cnt {
+		reg_wr refresh_time<7>; // 128
+/*
+	// 8192 refresh cycles every 64ms (50MHzで3,200,000clk)
+	// 390clkごとに1リフレッシュ
+	stage refresh_cnt {
+		reg_wr refresh_time<8>; // 256
+*/
+		state_name st1,st2;
+		first_state st1;
+		if(0b0) finish;
+		state st1 if(^refresh.do){
+			refresh_time++;
+			if(/&refresh_time) goto st2;
+		}
+		state st2 if(^(read_stg.do | write_stg.do)){
+			generate refresh.do();
+			goto st1;
+		}
+	}
+
+	// 3 clk
+	// read or write と refresh が同時に起動しても refresh を優先
+	stage refresh {
+		reg_wr refresh_A<15>;
+		state_name st_ACT, st_PRE, st_wPRE;
+		first_state st_ACT;
+		state st_ACT par{
+			com_ACT();
+			BA_reg := refresh_A<1:0>;
+			A_reg := refresh_A<14:2>;
+			goto st_PRE;
+		}
+		state st_PRE par{
+			com_PRE();
+			A_reg := 0b0010000000000;
+			refresh_A++;
+			goto st_wPRE;
+		}
+		state st_wPRE par{
+			com_NOP();
+			goto st_ACT;
+			finish;
+		}
+	}
+
+}

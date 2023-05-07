@@ -1,0 +1,89 @@
+
+%i "seg7_ctrl.h"
+%i "vjtag_uart.h"
+%i "sdram_ctrl.h"
+
+circuit vjtag_test
+{
+	input KEY<4>, SW<10>;
+//	chatmask kcmask_0, kcmask_1, kcmask_2, kcmask_3;
+	sela key[4];
+	output LEDR<10>;
+	seg7_ctrl seg7_0, seg7_1, seg7_2, seg7_3, seg7_4, seg7_5;
+	sel seg<24>;
+	output HEX0<7>, HEX1<7>, HEX2<7>, HEX3<7>, HEX4<7>, HEX5<7>;
+//--------------------- SDRAM Interface --------------------
+	sdram_ctrl sdram;
+	output SDRAM_CSn, SDRAM_WEn, SDRAM_DEn;
+	output SDRAM_RASn, SDRAM_CASn;
+	output SDRAM_BA<2>, SDRAM_ADDR<13>;
+	output SDRAM_LDQM, SDRAM_UDQM;
+	input  SDRAM_Din<16>;
+	output SDRAM_Dout<16>;
+
+
+	vjtag_uart vjtag;
+
+	reg_wr recv_adrs<25>, send_adrs<25>; // max 32MB
+	reg_wr recv_sum<8>, send_sum<8>, send_data_last<8>;
+
+//	par(i=0;i<4;i++){
+//		kcmask[i].bin = ^KEY<i>; key[i] = kcmask[i].bout;
+//	}
+
+	HEX5 = -1;//seg7_5.con(seg<23:20>).oSEG;
+	HEX4 = -1;//seg7_4.con(seg<19:16>).oSEG;
+	HEX3 = seg7_3.con(seg<15:12>).oSEG;
+	HEX2 = seg7_2.con(seg<11:8>).oSEG;
+	HEX1 = seg7_1.con(seg<7:4>).oSEG;
+	HEX0 = seg7_0.con(seg<3:0>).oSEG;
+
+	SDRAM_CSn = sdram.CSn;
+	SDRAM_RASn = sdram.RASn;
+	SDRAM_CASn = sdram.CASn;
+	SDRAM_WEn = sdram.WEn;
+	SDRAM_DEn = sdram.DEn;
+	SDRAM_BA = sdram.BA;
+	SDRAM_ADDR = sdram.A;
+	SDRAM_LDQM = sdram.DQM<0>;
+	SDRAM_UDQM = sdram.DQM<1>;
+	SDRAM_Dout = sdram.Dout;
+	sdram.Din = SDRAM_Din;
+
+	if(SW<0>) seg = 0x00 || send_adrs<7:0> || recv_adrs<7:0>;
+	else seg = 0x00 || (send_sum-send_data_last) || recv_sum;
+
+	LEDR = send_adrs<10:1> | recv_adrs<10:1>;
+
+	instruct vjtag.recv_init par{
+		recv_adrs := 0;
+		recv_sum := 0x00;
+	}
+
+	instruct vjtag.recv par{
+		sdram.write(recv_adrs, 0x00 || vjtag.recv_data, 0b01);
+		recv_adrs++;
+		recv_sum += vjtag.recv_data;
+	}
+
+	instruct vjtag.send_init par{
+		send_adrs := 0;
+		send_sum := 0x00;
+		send_data_last := 0x00;
+	}
+
+	reg_wr vjtag_send;
+	instruct vjtag.send_ready par{
+		sdram.read(send_adrs);
+		send_adrs++;
+		vjtag_send := 0b1;
+	}
+	if(vjtag_send){
+		if(sdram.ack){
+			vjtag.send(sdram.rdata<7:0>);
+			send_sum += sdram.rdata<7:0>;
+			send_data_last := sdram.rdata<7:0>;
+			vjtag_send := 0b0;
+		}
+	}
+}
