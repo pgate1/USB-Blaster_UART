@@ -11,11 +11,22 @@ https://www.ftdichip.com/Drivers/D2XX.htm
 
 The result of running the sample.  
 ```
+DE0 result
 size 32768 byte
 
-send sum 0x26
-send 78ms 410.3 kB/s
+send sum 0x4B
+send 51ms 627.5 kB/s
 
-recv sum 0x26
-recv 1061ms 30.2 kB/s
+recv sum 0x4B
+recv 83ms 385.5 kB/s
+
+
+DE0-CV result
+size 1048576 byte
+
+send sum 0xE0
+send 1679ms 609.9 kB/s
+
+recv sum 0xE0
+recv 2636ms 388.5 kB/s
 ```
