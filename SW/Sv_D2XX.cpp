@@ -91,7 +91,7 @@ uint8 check_sum(uint8 *data, int size)
 }
 
 // 63バイト毎にWRコマンドを送る
-// 620 kB/s
+// 610 kB/s
 int BlasterSend(FT_HANDLE ftHandle, uint8 *send_data, const int send_size)
 {
 	if(send_data==NULL) return -1;
@@ -248,7 +248,8 @@ printf("recv %dms %0.1f kB/s\n\n", u, recv_size/s/1024.0);
 
 int main(void)
 {
-	const int size = 32768;
+	const int size = 32768; // for DE0 test
+//	const int size = 1024 * 1024; // for DE0-CV test
 	printf("size %d byte\n\n", size);
 
 /*
