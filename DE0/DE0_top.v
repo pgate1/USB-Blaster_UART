@@ -91,6 +91,7 @@ wire reset, g_reset;
 	vjtag_test VU (
 		.p_reset(g_reset), //: in std_logic;
 		.m_clock(CLOCK_50), //: in std_logic;
+		.SW(SW),
 		.HEX0(HEX0_D),//	: out std_logic_vector(6 downto 0);	--	Seven Segment Digit 0
 		.HEX1(HEX1_D),//	: out std_logic_vector(6 downto 0);	--	Seven Segment Digit 1
 		.HEX2(HEX2_D),//	: out std_logic_vector(6 downto 0);	--	Seven Segment Digit 2
