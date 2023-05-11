@@ -122,6 +122,7 @@ int BlasterSend(FT_HANDLE ftHandle, uint8 *send_data, const int send_size)
 		// 最後のWR位置を記憶しておく
 		last_index = i;
 	}
+
 	// 63でワンセットなので63で割った余りを最後のWR位置に入れる。
 	uint16 rem = send_size % 63;
 	// 余りが0の時はすでに63が入っている。それ以外の場合に余りを入れる。
@@ -170,6 +171,8 @@ int BlasterRecv(FT_HANDLE ftHandle, uint8 *recv_data, const int recv_size, bool 
 	// バッファサイズは63バイト毎に32ワード
 	// 偶数ならbytes_to_write/2、奇数ならbytes_to_write+1して/2
 	int write_buf_size = (bytes_to_write + 1) / 2;
+	// 32ワードで割り切れるサイズでwrite_bufを確保する
+//	write_buf_size = ((write_buf_size - 1) / 32 + 1) * 32; // 不要
 	uint16 *write_buf = new uint16[write_buf_size];
 	int last_index = 0;
 	memset(write_buf, 0x00, write_buf_size * 2);
@@ -179,6 +182,7 @@ int BlasterRecv(FT_HANDLE ftHandle, uint8 *recv_data, const int recv_size, bool 
 		// 最後のRD位置を記憶しておく
 		last_index = i;
 	}
+
 	// 63でワンセットなので63で割った余りを最後のRD位置に入れる。
 	uint16 rem = recv_size % 63;
 	// 余りが0の時はすでに63が入っている。それ以外の場合に余りを入れる。
