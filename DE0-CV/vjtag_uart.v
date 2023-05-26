@@ -18,7 +18,7 @@ module vjtag_uart (
 	wire tck, tdi, tdo;
 	wire virtual_state_sdr, virtual_state_uir;
 
-	virtual_jtag vjtag (
+	VirtualJTAG vjtag (
 		.tdo(tdo),
 		.ir_in(ir_in),
 		.tck(tck),
