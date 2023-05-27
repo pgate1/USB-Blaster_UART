@@ -11,11 +11,11 @@
 #include<memory>
 
 #if _M_AMD64
-#include "D2XXx64\\ftd2xx.h"
-#pragma comment(lib, "D2XXx64\\ftd2xx.lib")
+#include "D2XXx64/ftd2xx.h"
+#pragma comment(lib, "D2XXx64/ftd2xx.lib")
 #else
-#include "D2XX\\ftd2xx.h"
-#pragma comment(lib, "D2XX\\ftd2xx.lib")
+#include "D2XX/ftd2xx.h"
+#pragma comment(lib, "D2XX/ftd2xx.lib")
 #endif
 
 typedef unsigned char  uint8;
